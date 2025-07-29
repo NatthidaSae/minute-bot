@@ -100,7 +100,10 @@ async function seedDatabase() {
             meeting.date,
             JSON.stringify(['John Doe', 'Jane Smith', 'Bob Johnson']),
             JSON.stringify(['Decision 1', 'Decision 2']),
-            JSON.stringify(['Action 1', 'Action 2']),
+            JSON.stringify([
+              { task: 'Action 1', assignedTo: ['John Doe'], dueDate: null },
+              { task: 'Action 2', assignedTo: ['Jane Smith'], dueDate: null }
+            ]),
             JSON.stringify(['Highlight 1', 'Highlight 2']),
             JSON.stringify(['Next step 1', 'Next step 2'])
           ]
