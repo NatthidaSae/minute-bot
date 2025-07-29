@@ -6,7 +6,6 @@ import AttendeesList from '../components/summary/AttendeesList';
 import KeyDecisions from '../components/summary/KeyDecisions';
 import ActionItemsList from '../components/summary/ActionItemsList';
 import DiscussionHighlights from '../components/summary/DiscussionHighlights';
-import NextSteps from '../components/summary/NextSteps';
 import MeetingTranscript from '../components/summary/MeetingTranscript';
 import SectionNavigationSidebar from '../components/summary/SectionNavigationSidebar';
 
@@ -121,11 +120,10 @@ function Summary() {
   }
 
   const sections = [
-    { id: 'attendees', title: 'Attendees', show: summary.attendees?.length > 0 },
+    { id: 'discussion-highlights', title: 'Discussion Highlights', show: summary.discussionHighlights?.length > 0 },
     { id: 'key-decisions', title: 'Key Decisions', show: summary.keyDecisions?.length > 0 },
     { id: 'action-items', title: 'Action Items', show: summary.actionItems?.length > 0 },
-    { id: 'discussion-highlights', title: 'Discussion Highlights', show: summary.discussionHighlights?.length > 0 },
-    { id: 'next-steps', title: 'Next Steps', show: summary.nextSteps?.length > 0 },
+    { id: 'attendees', title: 'Attendees', show: summary.attendees?.length > 0 },
     { id: 'transcript', title: 'Meeting Transcript', show: !!summary.transcriptContent }
   ].filter(section => section.show);
 
@@ -190,9 +188,9 @@ function Summary() {
                 </div>
               </div>
 
-              {summary.attendees?.length > 0 && (
-                <section id="attendees" className="card p-8 animate-slide-up">
-                  <AttendeesList attendees={summary.attendees} />
+              {summary.discussionHighlights?.length > 0 && (
+                <section id="discussion-highlights" className="card p-8 animate-slide-up">
+                  <DiscussionHighlights highlights={summary.discussionHighlights} />
                 </section>
               )}
 
@@ -208,15 +206,9 @@ function Summary() {
                 </section>
               )}
 
-              {summary.discussionHighlights?.length > 0 && (
-                <section id="discussion-highlights" className="card p-8 animate-slide-up">
-                  <DiscussionHighlights highlights={summary.discussionHighlights} />
-                </section>
-              )}
-
-              {summary.nextSteps?.length > 0 && (
-                <section id="next-steps" className="card p-8 animate-slide-up">
-                  <NextSteps steps={summary.nextSteps} />
+              {summary.attendees?.length > 0 && (
+                <section id="attendees" className="card p-8 animate-slide-up">
+                  <AttendeesList attendees={summary.attendees} />
                 </section>
               )}
 

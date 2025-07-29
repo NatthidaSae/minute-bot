@@ -18,25 +18,24 @@ async function generateSummary(transcript) {
   }
 
   const prompt = `
-You are an AI assistant that creates structured summaries from meeting transcripts.
-Analyze the following meeting transcript and provide a summary in JSON format.
+คุณคือผู้ช่วย AI ที่สร้างสรุปโครงสร้างจากการถอดเสียงการประชุม
+วิเคราะห์การถอดเสียงการประชุมต่อไปนี้และสรุปในรูปแบบ JSON
 
-The summary should include:
-1. key_decisions: Array of important decisions made during the meeting
-2. action_items: Array of tasks assigned, including who is responsible and due dates if mentioned
-3. discussion_highlights: Array of main topics discussed or important points raised
-4. next_steps: Array of planned next steps or follow-up items
-5. attendees: Array of participant names mentioned in the transcript (extract from the conversation)
+การสรุปควรประกอบด้วย:
+1.  key_decisions: อาร์เรย์ของการตัดสินใจที่สำคัญที่เกิดขึ้นในการประชุม ควรค้นหาจากวลีที่แสดงถึงการตกลงร่วมกันอย่างชัดเจน เช่น "เราตัดสินใจว่า", "ตกลงกันว่า", "เห็นชอบ", "อนุมัติ", "เลือกที่จะ", "ข้อสรุปสุดท้ายคือ", "เราจะดำเนินการด้วย".
+2.  action_items: อาร์เรย์ของงานที่เฉพาะเจาะจงซึ่งได้รับการมอบหมายโดยตรงจากการประชุม รวมถึงผู้รับผิดชอบและวันครบกำหนดหากมีการกล่าวถึง นี่คืองานเร่งด่วนที่มีผู้รับผิดชอบชัดเจน
+3.  discussion_highlights: อาร์เรย์ของหัวข้อหลักที่ถูกสนทนาหรือประเด็นสำคัญที่ถูกยกขึ้นมาระหว่างการสนทนา
+4.  attendees: อาร์เรย์ของชื่อผู้เข้าร่วมที่กล่าวถึงในการถอดเสียง (ดึงข้อมูลจากการสนทนา)
 
-Each action_item should be an object with these fields:
-- task: string (description of the task)
-- assignedTo: array of strings (names of people assigned)
-- dueDate: string or null (due date if mentioned, otherwise null)
+action_item แต่ละรายการควรเป็นออบเจกต์ที่มีฟิลด์เหล่านี้:
+-   task: string (คำอธิบายของงานเฉพาะ)
+-   assignedTo: array of strings (ชื่อของผู้ที่ได้รับมอบหมาย)
+-   dueDate: string หรือ null (วันครบกำหนด หากมีการกล่าวถึง มิฉะนั้นจะเป็น null)
 
 Transcript:
 ${transcript}
 
-Respond ONLY with valid JSON, no additional text or explanation.
+ตอบกลับเฉพาะ JSON ที่ถูกต้องเท่านั้น ห้ามมีข้อความหรือคำอธิบายเพิ่มเติม
 `;
 
   try {
@@ -99,7 +98,6 @@ Respond ONLY with valid JSON, no additional text or explanation.
         dueDate: item.dueDate || null
       })) : [],
       discussion_highlights: Array.isArray(summary.discussion_highlights) ? summary.discussion_highlights : [],
-      next_steps: Array.isArray(summary.next_steps) ? summary.next_steps : [],
       attendees: Array.isArray(summary.attendees) ? summary.attendees : []
     };
 

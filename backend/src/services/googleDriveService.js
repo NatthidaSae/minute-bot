@@ -63,7 +63,7 @@ class GoogleDriveService {
 
       // Now get .txt files, .docx files, and Google Docs
       const response = await this.drive.files.list({
-        q: `'${folderId}' in parents and ((name contains '.txt' and not name contains '.summary.txt') OR (name contains '.docx' and not name contains '.summary.txt') OR mimeType='application/vnd.google-apps.document') and trashed=false`,
+        q: `'${folderId}' in parents and ((name contains '.txt') OR (name contains '.docx') OR mimeType='application/vnd.google-apps.document') and trashed=false`,
         fields: 'files(id, name, size, createdTime, modifiedTime, md5Checksum, mimeType)',
         orderBy: 'createdTime desc',
         pageSize: 100
@@ -163,12 +163,41 @@ class GoogleDriveService {
       const response = await this.drive.files.create({
         resource: fileMetadata,
         media: media,
-        fields: 'id, name'
+        fields: 'id, name',
+        supportsAllDrives: true
       });
 
       return response.data;
     } catch (error) {
       console.error('Error uploading file to Google Drive:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing file in Google Drive
+   * @param {string} fileId - The ID of the file to update
+   * @param {string} content - The new file content
+   * @param {string} mimeType - Optional mime type (defaults to 'text/plain')
+   * @returns {Promise<Object>} - Updated file metadata
+   */
+  async updateFile(fileId, content, mimeType = 'text/plain') {
+    try {
+      const media = {
+        mimeType: mimeType,
+        body: content
+      };
+
+      const response = await this.drive.files.update({
+        fileId: fileId,
+        media: media,
+        fields: 'id, name, modifiedTime'
+      });
+
+      console.log(`File updated successfully: ${response.data.name}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating file in Google Drive:', error);
       throw error;
     }
   }

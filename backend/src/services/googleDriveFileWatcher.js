@@ -222,8 +222,7 @@ class GoogleDriveFileWatcher {
         attendees: summary.attendees,
         key_decisions: summary.key_decisions,
         action_items: summary.action_items,
-        discussion_highlights: summary.discussion_highlights,
-        next_steps: summary.next_steps
+        discussion_highlights: summary.discussion_highlights
       });
 
       // Update transcript status to 'done'
@@ -234,8 +233,27 @@ class GoogleDriveFileWatcher {
 
       console.log(`Summary generated successfully for transcript: ${transcriptId}`);
 
-      // Write summary file back to Google Drive
-      await this.writeSummaryToGoogleDrive(filename, summary, originalFileId);
+      // Fetch the saved summary from database to ensure consistency
+      const savedSummaryResult = await pool.query(
+        `SELECT 
+          attendees,
+          key_decisions,
+          action_items,
+          discussion_highlights,
+          date
+        FROM summaries 
+        WHERE transcript_id = $1`,
+        [transcriptId]
+      );
+
+      if (savedSummaryResult.rows.length === 0) {
+        throw new Error('Summary not found after saving');
+      }
+
+      const savedSummary = savedSummaryResult.rows[0];
+
+      // Write summary file back to Google Drive using database data
+      await this.writeSummaryToGoogleDrive(filename, savedSummary, originalFileId);
 
     } catch (error) {
       console.error(`Error generating summary for transcript ${transcriptId}:`, error);
@@ -249,74 +267,132 @@ class GoogleDriveFileWatcher {
   }
 
   /**
-   * Write summary file back to Google Drive
+   * Write summary to Google Drive - append for text/Google Docs, create new file for .docx
    */
   async writeSummaryToGoogleDrive(originalFilename, summary, originalFileId) {
     try {
-      // Create summary filename based on original file type
-      let summaryFilename;
-      if (originalFilename.endsWith('.txt')) {
-        summaryFilename = originalFilename.replace('.txt', '.summary.txt');
-      } else if (originalFilename.endsWith('.docx')) {
-        summaryFilename = originalFilename.replace('.docx', '.summary.txt');
-      } else {
-        // For Google Docs and other files, append .summary.txt
-        summaryFilename = originalFilename + '.summary.txt';
-      }
+      console.log(`Processing summary for: ${originalFilename}`);
 
-      // Check if summary file already exists
-      const exists = await googleDriveService.fileExists(summaryFilename, GOOGLE_DRIVE_FOLDER_ID);
-      if (exists) {
-        console.log(`Summary file already exists: ${summaryFilename}`);
-        return;
-      }
+      // Get file metadata to check type
+      const fileMetadata = await googleDriveService.drive.files.get({
+        fileId: originalFileId,
+        fields: 'mimeType, parents'
+      });
 
-      // Format summary for text file
-      let summaryText = `MEETING SUMMARY
-===============
+      const isDocx = fileMetadata.data.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-Date: ${new Date().toLocaleDateString()}
-Generated from: ${originalFilename}
+      // Safely extract arrays from database JSONB fields
+      const attendees = summary.attendees || [];
+      const keyDecisions = summary.key_decisions || [];
+      const actionItems = summary.action_items || [];
+      const discussionHighlights = summary.discussion_highlights || [];
+
+      // Format summary text
+      const summaryText = `
+
+========================================
+MEETING SUMMARY (Generated on ${new Date().toLocaleDateString()})
+========================================
 
 ATTENDEES
 ---------
-${summary.attendees.join('\n')}
+${attendees.length > 0 ? attendees.join('\n') : 'No attendees recorded'}
 
 KEY DECISIONS
 -------------
-${summary.key_decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
+${keyDecisions.length > 0 ? keyDecisions.map((d, i) => `${i + 1}. ${d}`).join('\n') : 'No key decisions recorded'}
 
 ACTION ITEMS
 ------------
-${summary.action_items.map((item, i) => {
-  let text = `${i + 1}. ${item.task}`;
-  if (item.assignedTo.length > 0) {
-    text += ` (Assigned to: ${item.assignedTo.join(', ')})`;
+${actionItems.length > 0 ? actionItems.map((item, i) => {
+  let text = `${i + 1}. `;
+  
+  // Handle both object format and string format for backward compatibility
+  if (typeof item === 'object' && item !== null) {
+    text += item.task || 'No task description';
+    if (item.assignedTo && item.assignedTo.length > 0) {
+      text += ` (Assigned to: ${item.assignedTo.join(', ')})`;
+    }
+    if (item.dueDate) {
+      text += ` [Due: ${item.dueDate}]`;
+    }
+  } else {
+    // If it's a string (old format), just use it as is
+    text += item;
   }
-  if (item.dueDate) {
-    text += ` [Due: ${item.dueDate}]`;
-  }
+  
   return text;
-}).join('\n')}
+}).join('\n') : 'No action items recorded'}
 
 DISCUSSION HIGHLIGHTS
 --------------------
-${summary.discussion_highlights.map((h, i) => `${i + 1}. ${h}`).join('\n')}
-
-NEXT STEPS
-----------
-${summary.next_steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+${discussionHighlights.length > 0 ? discussionHighlights.map((h, i) => `${i + 1}. ${h}`).join('\n') : 'No discussion highlights recorded'}
 
 ---
 This summary was automatically generated by the Meeting Summary Bot.
 `;
 
-      // Upload summary to Google Drive
-      await googleDriveService.uploadFile(summaryFilename, summaryText, GOOGLE_DRIVE_FOLDER_ID);
-      console.log(`Summary file uploaded to Google Drive: ${summaryFilename}`);
+      if (isDocx) {
+        // For .docx files, create a new .txt file with summary
+        const baseFilename = originalFilename.replace(/\.docx$/i, '');
+        const summaryFilename = `${baseFilename}_summary.txt`;
+        
+        // Get original content for the summary file
+        const originalContent = await this.getOriginalFileContent(originalFileId);
+        const fullContent = originalContent + summaryText;
+        
+        // Create new file in the same folder
+        const parentFolderId = fileMetadata.data.parents[0];
+        await googleDriveService.uploadFile(summaryFilename, fullContent, parentFolderId);
+        
+        console.log(`Created summary file: ${summaryFilename} for .docx file`);
+      } else {
+        // For .txt files and Google Docs, append to original
+        const originalContent = await this.getOriginalFileContent(originalFileId);
+        const updatedContent = originalContent + summaryText;
+
+        // Update the file in Google Drive
+        await googleDriveService.updateFile(originalFileId, updatedContent);
+        console.log(`Summary appended to original file: ${originalFilename}`);
+
+        // Update the file hash in database to reflect the new content
+        const newFileHash = googleDriveService.generateFileHash(updatedContent);
+        await pool.query(
+          'UPDATE transcripts SET file_hash = $1 WHERE file_hash = $2',
+          [newFileHash, googleDriveService.generateFileHash(originalContent)]
+        );
+      }
 
     } catch (error) {
-      console.error('Error writing summary to Google Drive:', error);
+      console.error('Error appending summary to Google Drive file:', error);
+    }
+  }
+
+  /**
+   * Get original file content from Google Drive
+   */
+  async getOriginalFileContent(fileId) {
+    try {
+      // Check file type and get content accordingly
+      const fileMetadata = await googleDriveService.drive.files.get({
+        fileId: fileId,
+        fields: 'mimeType'
+      });
+
+      let content;
+      if (fileMetadata.data.mimeType === 'application/vnd.google-apps.document') {
+        // Export Google Doc as text
+        content = await googleDriveService.exportGoogleDoc(fileId);
+      } else {
+        // Download file
+        const buffer = await googleDriveService.downloadFile(fileId);
+        content = buffer.toString('utf-8');
+      }
+
+      return content;
+    } catch (error) {
+      console.error('Error getting original file content:', error);
+      throw error;
     }
   }
 }

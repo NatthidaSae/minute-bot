@@ -46,7 +46,6 @@ class SummaryController {
           s.key_decisions as "keyDecisions",
           s.action_items as "actionItems",
           s.discussion_highlights as "discussionHighlights",
-          s.next_steps as "nextSteps",
           s.created_at as "createdAt",
           s.updated_at as "updatedAt"
         FROM summaries s
@@ -77,7 +76,6 @@ class SummaryController {
         keyDecisions: summary.keyDecisions || [],
         actionItems: summary.actionItems || [],
         discussionHighlights: summary.discussionHighlights || [],
-        nextSteps: summary.nextSteps || [],
         transcriptContent: transcript.content || '',
         createdAt: summary.createdAt,
         updatedAt: summary.updatedAt
