@@ -21,9 +21,11 @@ CREATE TABLE IF NOT EXISTS meetings (
 CREATE TABLE IF NOT EXISTS transcripts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  file_hash TEXT UNIQUE NOT NULL,
   meeting_date DATE NOT NULL,
   content TEXT NOT NULL,
-  status TEXT CHECK (status IN ('process', 'done')) NOT NULL DEFAULT 'process',
+  status TEXT CHECK (status IN ('process', 'done', 'error')) NOT NULL DEFAULT 'process',
   error_msg TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
