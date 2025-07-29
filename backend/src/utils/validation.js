@@ -79,13 +79,35 @@ function extractMeetingInfoFromFilename(filename) {
   // Remove file extension
   const nameWithoutExt = filename.replace(/\.(txt|docx)$/i, '');
   
+  // Pattern for [Org] [Project] Description_DateTime format
+  // Example: [TrueVC] [Pegasus] Morning sync up_2025-01-17T02_54_32+00_00
+  const bracketPattern = /^\[([^\]]+)\]\s*\[([^\]]+)\]\s*(.+?)_(\d{4}-\d{2}-\d{2})T/;
+  
+  let match = nameWithoutExt.match(bracketPattern);
+  if (match) {
+    return {
+      meetingName: `${match[1]}_${match[2]}`, // Combine org and project with underscore
+      meetingDate: new Date(match[4])
+    };
+  }
+  
+  // Pattern for single bracket format [Org] Description_Date
+  const singleBracketPattern = /^\[([^\]]+)\]\s*(.+?)_(\d{4}-\d{2}-\d{2})/;
+  match = nameWithoutExt.match(singleBracketPattern);
+  if (match) {
+    return {
+      meetingName: match[1], // Use the bracketed content as meeting name
+      meetingDate: new Date(match[3])
+    };
+  }
+  
   // Try to match date patterns
   // Pattern 1: MeetingName_YYYY-MM-DD
   const pattern1 = /^(.+?)_(\d{4}-\d{2}-\d{2})$/;
   // Pattern 2: MeetingName_DD-MM-YYYY
   const pattern2 = /^(.+?)_(\d{2}-\d{2}-\d{4})$/;
   
-  let match = nameWithoutExt.match(pattern1);
+  match = nameWithoutExt.match(pattern1);
   if (match) {
     return {
       meetingName: match[1].replace(/_/g, ' '),

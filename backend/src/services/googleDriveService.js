@@ -122,57 +122,6 @@ class GoogleDriveService {
     }
   }
 
-  /**
-   * Get file metadata from Google Drive
-   * @param {string} fileId - The Google Drive file ID
-   * @returns {Promise<Object>} - File metadata
-   */
-  async getFileMetadata(fileId) {
-    try {
-      const response = await this.drive.files.get({
-        fileId: fileId,
-        fields: 'id, name, size, createdTime, modifiedTime, md5Checksum, parents'
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error('Error getting file metadata from Google Drive:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Upload a file to Google Drive
-   * @param {string} fileName - The name of the file
-   * @param {string} content - The file content
-   * @param {string} folderId - The parent folder ID
-   * @returns {Promise<Object>} - Uploaded file metadata
-   */
-  async uploadFile(fileName, content, folderId) {
-    try {
-      const fileMetadata = {
-        name: fileName,
-        parents: [folderId]
-      };
-
-      const media = {
-        mimeType: 'text/plain',
-        body: content
-      };
-
-      const response = await this.drive.files.create({
-        resource: fileMetadata,
-        media: media,
-        fields: 'id, name',
-        supportsAllDrives: true
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error('Error uploading file to Google Drive:', error);
-      throw error;
-    }
-  }
 
   /**
    * Update an existing file in Google Drive
@@ -202,6 +151,7 @@ class GoogleDriveService {
     }
   }
 
+
   /**
    * Generate SHA256 hash from file content (for compatibility with existing code)
    * @param {string} content - File content
@@ -212,25 +162,42 @@ class GoogleDriveService {
   }
 
   /**
-   * Check if a file exists in Google Drive by name
-   * @param {string} fileName - The file name to check
-   * @param {string} folderId - The folder ID to search in
-   * @returns {Promise<boolean>} - True if file exists
+   * Update a .docx file by downloading, modifying, and re-uploading
+   * @param {string} fileId - The ID of the .docx file
+   * @param {Function} modifyFunction - Function that takes buffer and returns modified buffer
+   * @returns {Promise<Object>} - Updated file metadata
    */
-  async fileExists(fileName, folderId) {
+  async updateDocxFile(fileId, modifyFunction) {
     try {
-      const response = await this.drive.files.list({
-        q: `'${folderId}' in parents and name='${fileName}' and trashed=false`,
-        fields: 'files(id)',
-        pageSize: 1
+      console.log('Downloading .docx file for modification...');
+      
+      // Download current .docx file
+      const originalBuffer = await this.downloadFile(fileId);
+      
+      // Apply modifications
+      console.log('Applying modifications to .docx file...');
+      const modifiedBuffer = await modifyFunction(originalBuffer);
+      
+      // Upload back to same file ID
+      console.log('Uploading modified .docx file...');
+      const response = await this.drive.files.update({
+        fileId: fileId,
+        media: {
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          body: modifiedBuffer
+        },
+        fields: 'id, name, modifiedTime',
+        supportsAllDrives: true
       });
-
-      return response.data.files && response.data.files.length > 0;
+      
+      console.log(`Successfully updated .docx file: ${response.data.name}`);
+      return response.data;
     } catch (error) {
-      console.error('Error checking file existence:', error);
-      return false;
+      console.error('Error updating .docx file:', error);
+      throw error;
     }
   }
+
 }
 
 // Create singleton instance

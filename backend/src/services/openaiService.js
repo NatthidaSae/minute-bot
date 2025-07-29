@@ -148,6 +148,5 @@ async function generateSummaryWithRetry(transcript, maxRetries = 1) {
 }
 
 module.exports = {
-  generateSummary,
   generateSummaryWithRetry
 };

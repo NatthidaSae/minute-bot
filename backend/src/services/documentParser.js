@@ -36,47 +36,6 @@ class DocumentParser {
     }
   }
 
-  /**
-   * Parse document based on MIME type
-   * @param {Buffer} buffer - The file buffer
-   * @param {string} mimeType - The file MIME type
-   * @returns {Promise<string>} - Extracted text content
-   */
-  async parseDocument(buffer, mimeType) {
-    switch (mimeType) {
-      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-        return this.parseDocx(buffer);
-      
-      // Future support for other formats
-      // case 'application/pdf':
-      //   return this.parsePdf(buffer);
-      // case 'application/rtf':
-      //   return this.parseRtf(buffer);
-      
-      default:
-        // For text files, just convert buffer to string
-        if (mimeType.startsWith('text/')) {
-          return buffer.toString('utf-8');
-        }
-        throw new Error(`Unsupported document type: ${mimeType}`);
-    }
-  }
-
-  /**
-   * Check if a MIME type is supported for parsing
-   * @param {string} mimeType - The file MIME type
-   * @returns {boolean} - True if supported
-   */
-  isSupported(mimeType) {
-    const supportedTypes = [
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'text/plain',
-      'text/markdown',
-      'text/csv'
-    ];
-    
-    return supportedTypes.includes(mimeType) || mimeType.startsWith('text/');
-  }
 }
 
 // Create singleton instance
