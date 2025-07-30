@@ -48,4 +48,4 @@ Thumbs.db
 
 # Build
 dist/
-build/
+build/.env
