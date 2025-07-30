@@ -8,6 +8,7 @@ import ActionItemsList from '../components/summary/ActionItemsList';
 import DiscussionHighlights from '../components/summary/DiscussionHighlights';
 import MeetingTranscript from '../components/summary/MeetingTranscript';
 import SectionNavigationSidebar from '../components/summary/SectionNavigationSidebar';
+import TranscriptSidebar from '../components/summary/TranscriptSidebar';
 
 function Summary() {
   const { transcriptId } = useParams();
@@ -128,50 +129,50 @@ function Summary() {
   ].filter(section => section.show);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Modern Header Bar */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={handleBackToDashboard}
-              className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="font-medium">Back</span>
-            </button>
-            
-            <div className="text-center">
-              <h1 className="text-lg font-semibold text-gray-900">Meeting Summary</h1>
-              <p className="text-sm text-gray-500">
-                {summary.date && new Date(summary.date).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex">
+      {/* Transcript Sidebar - Desktop */}
+      <TranscriptSidebar 
+        meetingId={summary.meetingId} 
+        meetingTitle={summary.meetingTitle}
+      />
+      
+      <div className="flex-1 flex flex-col">
+        {/* Modern Header Bar */}
+        <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <button
+                onClick={handleBackToDashboard}
+                className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="font-medium">Back to Dashboard</span>
+              </button>
+              
+              <div className="text-center">
+                <h1 className="text-lg font-semibold text-gray-900">Meeting Summary</h1>
+                <p className="text-sm text-gray-500">
+                  {summary.date && new Date(summary.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+              </div>
+              
+              <div className="w-32"></div>
             </div>
-            
-            <div className="w-20"></div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar Navigation - Desktop Only */}
-          <aside className="hidden lg:block w-72 flex-shrink-0">
-            <div className="sticky top-24">
-              <SectionNavigationSidebar sections={sections} />
-            </div>
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1 animate-fade-in">
-            <div className="space-y-6">
+        <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+          <div className="flex gap-8">
+            {/* Main Content */}
+            <main className="flex-1 animate-fade-in">
+              <div className="space-y-6">
               {/* Quick Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="card p-6 text-center">
@@ -219,9 +220,17 @@ function Summary() {
               )}
             </div>
           </main>
+
+          {/* Sidebar Navigation - Desktop Only */}
+          <aside className="hidden lg:block w-72 flex-shrink-0">
+            <div className="sticky top-24">
+              <SectionNavigationSidebar sections={sections} />
+            </div>
+          </aside>
         </div>
       </div>
     </div>
+  </div>
   );
 }
 

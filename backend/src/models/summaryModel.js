@@ -12,8 +12,12 @@ class Summary {
         s.action_items,
         s.discussion_highlights,
         s.created_at,
-        s.updated_at
+        s.updated_at,
+        t.meeting_id,
+        m.title as meeting_title
       FROM summaries s
+      JOIN transcripts t ON t.id = s.transcript_id
+      JOIN meetings m ON m.id = t.meeting_id
       WHERE s.transcript_id = $1
     `;
     

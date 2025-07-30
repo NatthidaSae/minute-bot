@@ -27,6 +27,17 @@ class MeetingController {
       next(error);
     }
   }
+  
+  static async getMeetingTranscripts(req, res, next) {
+    try {
+      const { meetingId } = req.params;
+      const transcripts = await MeetingModel.getMeetingTranscripts(meetingId);
+      
+      res.json({ data: transcripts });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 // Helper function to get the test user ID

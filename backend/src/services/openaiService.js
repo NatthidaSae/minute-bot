@@ -18,24 +18,25 @@ async function generateSummary(transcript) {
   }
 
   const prompt = `
-คุณคือผู้ช่วย AI ที่สร้างสรุปโครงสร้างจากการถอดเสียงการประชุม
-วิเคราะห์การถอดเสียงการประชุมต่อไปนี้และสรุปในรูปแบบ JSON
+You are an AI assistant that creates structured summaries from meeting transcripts.
+Analyze the following meeting transcript and provide a summary in JSON format.
 
-การสรุปควรประกอบด้วย:
-1.  key_decisions: อาร์เรย์ของการตัดสินใจที่สำคัญที่เกิดขึ้นในการประชุม ควรค้นหาจากวลีที่แสดงถึงการตกลงร่วมกันอย่างชัดเจน เช่น "เราตัดสินใจว่า", "ตกลงกันว่า", "เห็นชอบ", "อนุมัติ", "เลือกที่จะ", "ข้อสรุปสุดท้ายคือ", "เราจะดำเนินการด้วย".
-2.  action_items: อาร์เรย์ของงานที่เฉพาะเจาะจงซึ่งได้รับการมอบหมายโดยตรงจากการประชุม รวมถึงผู้รับผิดชอบและวันครบกำหนดหากมีการกล่าวถึง นี่คืองานเร่งด่วนที่มีผู้รับผิดชอบชัดเจน
-3.  discussion_highlights: อาร์เรย์ของหัวข้อหลักที่ถูกสนทนาหรือประเด็นสำคัญที่ถูกยกขึ้นมาระหว่างการสนทนา
-4.  attendees: อาร์เรย์ของชื่อผู้เข้าร่วมที่กล่าวถึงในการถอดเสียง (ดึงข้อมูลจากการสนทนา)
+The summary should include:
+1.  key_decisions: Array of important decisions explicitly made or clearly agreed upon during the meeting. Look for phrases like "we decided," "it's agreed that," "the consensus is," "approved," "opted for," "the final call is to," "we will proceed with."
+2.  action_items: Array of specific, assignable tasks resulting directly from the meeting, including who is responsible and due dates if mentioned. These are immediate tasks with clear ownership.
+3.  discussion_highlights: Array of main topics discussed or important points raised during the conversation.
+4.  next_steps: Array of planned future activities, broader follow-up items, or topics for subsequent discussions that do not have immediate individual assignments or strict deadlines from this specific meeting. These represent the general progression or future agenda.
+5.  attendees: Array of participant names mentioned in the transcript (extract from the conversation).
 
-action_item แต่ละรายการควรเป็นออบเจกต์ที่มีฟิลด์เหล่านี้:
--   task: string (คำอธิบายของงานเฉพาะ)
--   assignedTo: array of strings (ชื่อของผู้ที่ได้รับมอบหมาย)
--   dueDate: string หรือ null (วันครบกำหนด หากมีการกล่าวถึง มิฉะนั้นจะเป็น null)
+Each action_item should be an object with these fields:
+-   task: string (description of the specific task)
+-   assignedTo: array of strings (names of people assigned)
+-   dueDate: string or null (due date if mentioned, otherwise null)
 
 Transcript:
 ${transcript}
 
-ตอบกลับเฉพาะ JSON ที่ถูกต้องเท่านั้น ห้ามมีข้อความหรือคำอธิบายเพิ่มเติม
+Respond ONLY with valid JSON, no additional text or explanation.
 `;
 
   try {
@@ -53,7 +54,7 @@ ${transcript}
             content: prompt
           }
         ],
-        temperature: 0.3, // Lower temperature for more consistent output
+        temperature: 0.2, 
         max_tokens: 2000
       },
       {
@@ -75,7 +76,7 @@ ${transcript}
     // Parse the JSON response
     let summary;
     try {
-      // Remove markdown code blocks if present
+    
       let cleanContent = content;
       if (content.includes('```json')) {
         cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
@@ -98,6 +99,7 @@ ${transcript}
         dueDate: item.dueDate || null
       })) : [],
       discussion_highlights: Array.isArray(summary.discussion_highlights) ? summary.discussion_highlights : [],
+      next_steps: Array.isArray(summary.next_steps) ? summary.next_steps : [],
       attendees: Array.isArray(summary.attendees) ? summary.attendees : []
     };
 
@@ -148,5 +150,6 @@ async function generateSummaryWithRetry(transcript, maxRetries = 1) {
 }
 
 module.exports = {
+  generateSummary,
   generateSummaryWithRetry
 };

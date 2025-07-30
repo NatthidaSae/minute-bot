@@ -92,6 +92,40 @@ class MeetingModel {
       throw error;
     }
   }
+  
+  static async getMeetingTranscripts(meetingId) {
+    try {
+      const query = `
+        SELECT 
+          t.id,
+          t.title,
+          t.meeting_date,
+          t.status,
+          t.created_at,
+          s.id as summary_id,
+          m.title as meeting_title
+        FROM transcripts t
+        LEFT JOIN summaries s ON s.transcript_id = t.id
+        LEFT JOIN meetings m ON m.id = t.meeting_id
+        WHERE t.meeting_id = $1
+        ORDER BY t.meeting_date DESC, t.created_at DESC
+      `;
+      
+      const result = await pool.query(query, [meetingId]);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        title: row.title || `Transcript - ${new Date(row.created_at).toLocaleTimeString()}`,
+        date: row.meeting_date.toISOString().split('T')[0],
+        status: row.status,
+        createdAt: row.created_at,
+        summaryId: row.summary_id,
+        meetingTitle: row.meeting_title
+      }));
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = MeetingModel;

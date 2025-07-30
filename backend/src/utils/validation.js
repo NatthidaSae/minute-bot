@@ -71,9 +71,35 @@ function validateTranscriptFilename(filename) {
 }
 
 /**
+ * Normalizes a meeting title for consistent grouping
+ * @param {string} title - The meeting title to normalize
+ * @returns {string} - Normalized meeting title
+ */
+function normalizeMeetingTitle(title) {
+  if (!title) return '';
+  
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+    .replace(/[^\w\s]/g, '') // Remove special characters except spaces
+    .replace(/\b(meeting|call|sync|standup|stand up)\b/g, match => {
+      // Standardize common meeting terms
+      const standardTerms = {
+        'meeting': 'meeting',
+        'call': 'meeting',
+        'sync': 'sync',
+        'standup': 'standup',
+        'stand up': 'standup'
+      };
+      return standardTerms[match] || match;
+    });
+}
+
+/**
  * Extracts meeting info from filename
  * @param {string} filename - The transcript filename
- * @returns {Object} - { meetingName: string, meetingDate: Date|null }
+ * @returns {Object} - { meetingName: string, transcriptTitle: string|null, meetingDate: Date|null }
  */
 function extractMeetingInfoFromFilename(filename) {
   // Remove file extension
@@ -81,14 +107,27 @@ function extractMeetingInfoFromFilename(filename) {
   
   // Pattern for [Org] [Project] Description_DateTime format
   // Example: [TrueVC] [Pegasus] Morning sync up_2025-01-17T02_54_32+00_00
-  const bracketPattern = /^\[([^\]]+)\]\s*\[([^\]]+)\]\s*(.+?)_(\d{4}-\d{2}-\d{2})T/;
+  // Also handles: [TrueVC][Titanus][Argus] Morning sync up_2025-01-17T05_15_06+00_00
+  const bracketPattern = /^\[([^\]]+)\]\s*\[([^\]]+)\](?:\s*\[([^\]]+)\])?\s*(.+?)_(\d{4}-\d{2}-\d{2})T/;
   
   let match = nameWithoutExt.match(bracketPattern);
   if (match) {
-    return {
-      meetingName: `${match[1]}_${match[2]}`, // Combine org and project with underscore
-      meetingDate: new Date(match[4])
-    };
+    // Handle both 2 and 3 bracket patterns
+    if (match[3]) {
+      // Three brackets: [Org][Project][SubProject] Description
+      return {
+        meetingName: `${match[1]}_${match[2]}_${match[3]}`,
+        transcriptTitle: match[4].trim(),
+        meetingDate: new Date(match[5])
+      };
+    } else {
+      // Two brackets: [Org][Project] Description
+      return {
+        meetingName: `${match[1]}_${match[2]}`,
+        transcriptTitle: match[4].trim(),
+        meetingDate: new Date(match[5])
+      };
+    }
   }
   
   // Pattern for single bracket format [Org] Description_Date
@@ -97,6 +136,7 @@ function extractMeetingInfoFromFilename(filename) {
   if (match) {
     return {
       meetingName: match[1], // Use the bracketed content as meeting name
+      transcriptTitle: match[2].trim(), // The description part
       meetingDate: new Date(match[3])
     };
   }
@@ -109,8 +149,10 @@ function extractMeetingInfoFromFilename(filename) {
   
   match = nameWithoutExt.match(pattern1);
   if (match) {
+    const meetingName = match[1].replace(/_/g, ' ');
     return {
-      meetingName: match[1].replace(/_/g, ' '),
+      meetingName: meetingName,
+      transcriptTitle: null, // No separate transcript title for simple patterns
       meetingDate: new Date(match[2])
     };
   }
@@ -118,15 +160,19 @@ function extractMeetingInfoFromFilename(filename) {
   match = nameWithoutExt.match(pattern2);
   if (match) {
     const [day, month, year] = match[2].split('-');
+    const meetingName = match[1].replace(/_/g, ' ');
     return {
-      meetingName: match[1].replace(/_/g, ' '),
+      meetingName: meetingName,
+      transcriptTitle: null, // No separate transcript title for simple patterns
       meetingDate: new Date(`${year}-${month}-${day}`)
     };
   }
   
   // No date found, use filename as meeting name
+  const meetingName = nameWithoutExt.replace(/_/g, ' ');
   return {
-    meetingName: nameWithoutExt.replace(/_/g, ' '),
+    meetingName: meetingName,
+    transcriptTitle: null,
     meetingDate: null
   };
 }
@@ -134,5 +180,6 @@ function extractMeetingInfoFromFilename(filename) {
 module.exports = {
   validateTranscript,
   validateTranscriptFilename,
-  extractMeetingInfoFromFilename
+  extractMeetingInfoFromFilename,
+  normalizeMeetingTitle
 };

@@ -2,7 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const pool = require('../config/database');
-const { validateTranscriptFilename, extractMeetingInfoFromFilename } = require('../utils/validation');
+const { validateTranscriptFilename, extractMeetingInfoFromFilename, normalizeMeetingTitle } = require('../utils/validation');
 const { generateSummaryWithRetry } = require('./openaiService');
 const SummaryModel = require('../models/summaryModel');
 const { SYSTEM_USER_ID } = require('../constants/system');
@@ -103,40 +103,60 @@ class FileWatcherService {
         return;
       }
 
-      // Generate file hash
+      // Check if file already processed by filename
+      const existingTranscript = await pool.query(
+        'SELECT id, status FROM transcripts WHERE filename = $1',
+        [filename]
+      );
+
+      let transcriptId;
+      let isRetry = false;
+
+      if (existingTranscript.rows.length > 0) {
+        const status = existingTranscript.rows[0].status;
+        transcriptId = existingTranscript.rows[0].id;
+        
+        if (status === 'done' || status === 'process') {
+          console.log(`File already processed/processing: ${filename} (status: ${status})`);
+          return;
+        }
+        
+        if (status === 'error') {
+          console.log(`Retrying previously failed file: ${filename}`);
+          isRetry = true;
+          // Update the existing transcript record to retry
+          await pool.query(
+            'UPDATE transcripts SET status = $1, updated_at = NOW() WHERE id = $2',
+            ['process', transcriptId]
+          );
+        }
+      }
+
+      // Read file content after status check
       const fileContent = await fs.readFile(filePath, 'utf8');
       const fileHash = crypto.createHash('sha256').update(fileContent).digest('hex');
 
-      // Check if file already processed (duplicate check)
-      const duplicateCheck = await pool.query(
-        'SELECT id, status FROM transcripts WHERE file_hash = $1',
-        [fileHash]
-      );
+      if (!isRetry) {
+        console.log(`Processing new file: ${filename}`);
 
-      if (duplicateCheck.rows.length > 0) {
-        console.log(`File already processed: ${filename} (status: ${duplicateCheck.rows[0].status})`);
-        return;
+        // Extract meeting info from filename
+        const { meetingName, transcriptTitle, meetingDate } = extractMeetingInfoFromFilename(filename);
+        const effectiveDate = meetingDate || new Date();
+
+        // Create or find meeting record
+        const meetingResult = await this.findOrCreateMeeting(meetingName, effectiveDate);
+        const meetingId = meetingResult.id;
+
+        // Create transcript record with status 'process'
+        const transcriptResult = await pool.query(
+          `INSERT INTO transcripts (meeting_id, title, filename, file_hash, meeting_date, content, status) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [meetingId, transcriptTitle, filename, fileHash, effectiveDate, fileContent, 'process']
+        );
+
+        transcriptId = transcriptResult.rows[0].id;
+        console.log(`Created transcript record: ${transcriptId}`);
       }
-
-      console.log(`Processing new file: ${filename}`);
-
-      // Extract meeting info from filename
-      const { meetingName, meetingDate } = extractMeetingInfoFromFilename(filename);
-      const effectiveDate = meetingDate || new Date();
-
-      // Create or find meeting record
-      const meetingResult = await this.findOrCreateMeeting(meetingName, effectiveDate);
-      const meetingId = meetingResult.id;
-
-      // Create transcript record with status 'process'
-      const transcriptResult = await pool.query(
-        `INSERT INTO transcripts (meeting_id, filename, file_hash, meeting_date, content, status) 
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [meetingId, filename, fileHash, effectiveDate, fileContent, 'process']
-      );
-
-      const transcriptId = transcriptResult.rows[0].id;
-      console.log(`Created transcript record: ${transcriptId}`);
 
       // Process transcript asynchronously
       this.processTranscriptAsync(transcriptId, fileContent, filename);
@@ -153,22 +173,32 @@ class FileWatcherService {
     // Use system user ID for automated meeting inserts
     const userId = SYSTEM_USER_ID;
 
-    // Check if meeting exists
+    // Normalize the meeting title for consistent grouping
+    const normalizedTitle = normalizeMeetingTitle(meetingName);
+
+    // Check if meeting exists with the same normalized title (case-insensitive)
+    // We're looking for meetings with similar titles, regardless of date
     const existingMeeting = await pool.query(
-      'SELECT id FROM meetings WHERE title = $1 AND meeting_date = $2 AND user_id = $3',
-      [meetingName, meetingDate, userId]
+      `SELECT id, title FROM meetings 
+       WHERE LOWER(TRIM(title)) = LOWER(TRIM($1)) 
+       AND user_id = $2
+       LIMIT 1`,
+      [meetingName, userId]
     );
 
     if (existingMeeting.rows.length > 0) {
+      console.log(`Found existing meeting: ${existingMeeting.rows[0].title} (ID: ${existingMeeting.rows[0].id})`);
       return existingMeeting.rows[0];
     }
 
-    // Create new meeting
+    // No existing meeting found, create new one
+    // Use the first occurrence date as the meeting date
     const newMeeting = await pool.query(
-      'INSERT INTO meetings (title, meeting_date, user_id) VALUES ($1, $2, $3) RETURNING id',
+      'INSERT INTO meetings (title, meeting_date, user_id) VALUES ($1, $2, $3) RETURNING id, title',
       [meetingName, meetingDate, userId]
     );
 
+    console.log(`Created new meeting: ${newMeeting.rows[0].title} (ID: ${newMeeting.rows[0].id})`);
     return newMeeting.rows[0];
   }
 

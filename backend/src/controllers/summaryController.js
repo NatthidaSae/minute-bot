@@ -15,7 +15,7 @@ class SummaryController {
 
       // First, check if the transcript exists and get its status and content
       const transcriptQuery = `
-        SELECT t.id, t.status, t.error_msg, t.content, m.title, m.meeting_date
+        SELECT t.id, t.status, t.error_msg, t.content, t.meeting_id, m.title, m.meeting_date
         FROM transcripts t
         JOIN meetings m ON t.meeting_id = m.id
         WHERE t.id = $1
@@ -67,10 +67,12 @@ class SummaryController {
       console.log('Transcript content exists?', !!transcript.content);
       console.log('Transcript content length:', transcript.content ? transcript.content.length : 0);
       
-      // Format the response - include transcript content
+      // Format the response - include transcript content and meeting info
       const response = {
         summaryId: summary.summaryId,
         transcriptId: summary.transcriptId,
+        meetingId: transcript.meeting_id,
+        meetingTitle: transcript.title,
         date: summary.date,
         attendees: summary.attendees || [],
         keyDecisions: summary.keyDecisions || [],
