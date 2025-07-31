@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { meetingService } from '../../services/meetingService';
 import Badge from '../ui/Badge';
+import { formatTime } from '../../utils/dateTime';
 
 function TranscriptSidebar({ meetingId, meetingTitle }) {
   const { transcriptId } = useParams();
@@ -9,17 +10,21 @@ function TranscriptSidebar({ meetingId, meetingTitle }) {
   const [loading, setLoading] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [groupedTranscripts, setGroupedTranscripts] = useState({});
+  const [showAllOccurrences, setShowAllOccurrences] = useState(true);
 
   useEffect(() => {
     if (meetingId) {
       fetchTranscripts();
     }
-  }, [meetingId]);
+  }, [meetingId, showAllOccurrences]);
 
   const fetchTranscripts = async () => {
     try {
       setLoading(true);
-      const response = await meetingService.getMeetingTranscripts(meetingId);
+      // Fetch either all series transcripts or just this meeting's transcripts
+      const response = showAllOccurrences 
+        ? await meetingService.getMeetingSeriesTranscripts(meetingId)
+        : await meetingService.getMeetingTranscripts(meetingId);
       setTranscripts(response.data || []);
       
       // Group transcripts by date
@@ -106,6 +111,7 @@ function TranscriptSidebar({ meetingId, meetingTitle }) {
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
                 {transcripts.length} transcript{transcripts.length !== 1 ? 's' : ''}
+                {showAllOccurrences && transcripts.some(t => t.isCurrentMeeting) && ' (all occurrences)'}
               </p>
             </div>
           )}
@@ -124,6 +130,30 @@ function TranscriptSidebar({ meetingId, meetingTitle }) {
             </svg>
           </button>
         </div>
+        
+        {/* Toggle for showing all occurrences */}
+        {!isCollapsed && transcripts.length > 0 && (
+          <div className="mt-3">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showAllOccurrences}
+                onChange={(e) => setShowAllOccurrences(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`relative w-9 h-5 rounded-full transition-colors ${
+                showAllOccurrences ? 'bg-primary-600' : 'bg-gray-300'
+              }`}>
+                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                  showAllOccurrences ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </div>
+              <span className="ml-2 text-xs text-gray-600">
+                Show all occurrences
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Transcript List */}
@@ -144,33 +174,47 @@ function TranscriptSidebar({ meetingId, meetingTitle }) {
                 <div className="space-y-1">
                   {dateTranscripts.map((transcript) => {
                     const isActive = transcript.id === transcriptId;
-                    const timeStr = new Date(transcript.createdAt).toLocaleTimeString('en-US', {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: true
-                    });
+                    // Use meeting time if available, otherwise fall back to creation time
+                    const timeStr = transcript.time 
+                      ? formatTime(transcript.time)
+                      : new Date(transcript.createdAt).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        });
                     
                     return (
                       <Link
                         key={transcript.id}
                         to={`/summary/${transcript.id}`}
                         className={`
-                          flex items-center px-2 py-2 rounded-lg text-sm transition-all
+                          flex items-center px-2 py-2 rounded-lg text-sm transition-all relative
                           ${isActive 
                             ? 'bg-primary-50 text-primary-700 border border-primary-200' 
                             : 'hover:bg-gray-50 text-gray-700 hover:text-gray-900'
                           }
+                          ${showAllOccurrences && transcript.isCurrentMeeting && !isActive 
+                            ? 'ring-1 ring-primary-300' 
+                            : ''
+                          }
                         `}
-                        title={isCollapsed ? `${transcript.title || timeStr}` : ''}
+                        title={isCollapsed ? `${transcript.title || timeStr}${transcript.isCurrentMeeting ? ' (current meeting)' : ''}` : ''}
                       >
                         <div className="flex items-center justify-center w-8 h-8 flex-shrink-0">
                           {getStatusIcon(transcript.status)}
                         </div>
                         {!isCollapsed && (
                           <div className="ml-3 flex-1 min-w-0">
-                            <p className="font-medium truncate">
-                              {transcript.title || `Transcript - ${timeStr}`}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate flex-1">
+                                {transcript.title || `Transcript - ${timeStr}`}
+                              </p>
+                              {showAllOccurrences && transcript.isCurrentMeeting && (
+                                <span className="text-xs bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">
+                                  current
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {timeStr}
                             </p>

@@ -1,4 +1,5 @@
 // Validation utilities for transcript processing
+const { convertUTCtoAsiaTime } = require('./timeConversion');
 
 /**
  * Validates a transcript content
@@ -99,49 +100,71 @@ function normalizeMeetingTitle(title) {
 /**
  * Extracts meeting info from filename
  * @param {string} filename - The transcript filename
- * @returns {Object} - { meetingName: string, transcriptTitle: string|null, meetingDate: Date|null }
+ * @returns {Object} - { meetingName: string, transcriptTitle: string|null, meetingDate: Date|null, meetingTime: string|null }
  */
 function extractMeetingInfoFromFilename(filename) {
   // Remove file extension
   const nameWithoutExt = filename.replace(/\.(txt|docx)$/i, '');
   
-  // Pattern for [Org] [Project] Description_DateTime format
+  // Pattern for [Org] [Project] Description_DateTime format with time extraction
   // Example: [TrueVC] [Pegasus] Morning sync up_2025-01-17T02_54_32+00_00
   // Also handles: [TrueVC][Titanus][Argus] Morning sync up_2025-01-17T05_15_06+00_00
-  const bracketPattern = /^\[([^\]]+)\]\s*\[([^\]]+)\](?:\s*\[([^\]]+)\])?\s*(.+?)_(\d{4}-\d{2}-\d{2})T/;
+  const bracketPattern = /^(\[[^\]]+\]\s*\[[^\]]+\](?:\s*\[[^\]]+\])?\s*.+?)_(\d{4}-\d{2}-\d{2})T(\d{2})_(\d{2})_(\d{2})/;
   
   let match = nameWithoutExt.match(bracketPattern);
   if (match) {
-    // Handle both 2 and 3 bracket patterns
-    if (match[3]) {
-      // Three brackets: [Org][Project][SubProject] Description
-      return {
-        meetingName: `${match[1]}_${match[2]}_${match[3]}`,
-        transcriptTitle: match[4].trim(),
-        meetingDate: new Date(match[5])
-      };
-    } else {
-      // Two brackets: [Org][Project] Description
-      return {
-        meetingName: `${match[1]}_${match[2]}`,
-        transcriptTitle: match[4].trim(),
-        meetingDate: new Date(match[5])
-      };
-    }
-  }
-  
-  // Pattern for single bracket format [Org] Description_Date
-  const singleBracketPattern = /^\[([^\]]+)\]\s*(.+?)_(\d{4}-\d{2}-\d{2})/;
-  match = nameWithoutExt.match(singleBracketPattern);
-  if (match) {
+    // Keep the full title including brackets and description
+    const fullTitle = match[1];
+    const dateStr = match[2];
+    const hours = parseInt(match[3]);
+    const minutes = parseInt(match[4]);
+    const seconds = parseInt(match[5]);
+    
+    // Convert UTC time to Asia/Bangkok (UTC+7)
+    const asiaTime = convertUTCtoAsiaTime(dateStr, hours, minutes, seconds);
+    
     return {
-      meetingName: match[1], // Use the bracketed content as meeting name
-      transcriptTitle: match[2].trim(), // The description part
-      meetingDate: new Date(match[3])
+      meetingName: fullTitle,
+      transcriptTitle: fullTitle, // Use same as meeting name for consistency
+      meetingDate: asiaTime.date,
+      meetingTime: asiaTime.time
     };
   }
   
-  // Try to match date patterns
+  // Pattern for single bracket format [Org] Description_Date with time
+  const singleBracketTimePattern = /^(\[[^\]]+\]\s*.+?)_(\d{4}-\d{2}-\d{2})T(\d{2})_(\d{2})_(\d{2})/;
+  match = nameWithoutExt.match(singleBracketTimePattern);
+  if (match) {
+    const fullTitle = match[1];
+    const dateStr = match[2];
+    const hours = parseInt(match[3]);
+    const minutes = parseInt(match[4]);
+    const seconds = parseInt(match[5]);
+    
+    // Convert UTC time to Asia/Bangkok (UTC+7)
+    const asiaTime = convertUTCtoAsiaTime(dateStr, hours, minutes, seconds);
+    
+    return {
+      meetingName: fullTitle,
+      transcriptTitle: fullTitle,
+      meetingDate: asiaTime.date,
+      meetingTime: asiaTime.time
+    };
+  }
+  
+  // Pattern for formats without time
+  const noTimePattern = /^(\[[^\]]+\].*?)_(\d{4}-\d{2}-\d{2})$/;
+  match = nameWithoutExt.match(noTimePattern);
+  if (match) {
+    return {
+      meetingName: match[1],
+      transcriptTitle: match[1],
+      meetingDate: new Date(match[2]),
+      meetingTime: null
+    };
+  }
+  
+  // Try to match date patterns without brackets
   // Pattern 1: MeetingName_YYYY-MM-DD
   const pattern1 = /^(.+?)_(\d{4}-\d{2}-\d{2})$/;
   // Pattern 2: MeetingName_DD-MM-YYYY
@@ -153,7 +176,8 @@ function extractMeetingInfoFromFilename(filename) {
     return {
       meetingName: meetingName,
       transcriptTitle: null, // No separate transcript title for simple patterns
-      meetingDate: new Date(match[2])
+      meetingDate: new Date(match[2]),
+      meetingTime: null
     };
   }
   
@@ -164,7 +188,8 @@ function extractMeetingInfoFromFilename(filename) {
     return {
       meetingName: meetingName,
       transcriptTitle: null, // No separate transcript title for simple patterns
-      meetingDate: new Date(`${year}-${month}-${day}`)
+      meetingDate: new Date(`${year}-${month}-${day}`),
+      meetingTime: null
     };
   }
   
@@ -173,7 +198,8 @@ function extractMeetingInfoFromFilename(filename) {
   return {
     meetingName: meetingName,
     transcriptTitle: null,
-    meetingDate: null
+    meetingDate: null,
+    meetingTime: null
   };
 }
 

@@ -1,7 +1,10 @@
 import MeetingList from './MeetingList';
 import Badge from './ui/Badge';
+import { sortMeetingsByDateTime } from '../utils/dateTime';
 
 function TodaysMeetings({ meetings }) {
+  // Sort meetings by time for today's view
+  const sortedMeetings = sortMeetingsByDateTime(meetings);
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl"></div>
@@ -28,13 +31,13 @@ function TodaysMeetings({ meetings }) {
               <p className="text-sm text-gray-600 mt-0.5">Stay on top of your daily schedule</p>
             </div>
           </div>
-          <Badge variant={meetings.length > 0 ? "primary" : "default"} size="lg" dot>
-            {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
+          <Badge variant={sortedMeetings.length > 0 ? "primary" : "default"} size="lg" dot>
+            {sortedMeetings.length} meeting{sortedMeetings.length !== 1 ? 's' : ''}
           </Badge>
         </div>
         
-        {meetings.length > 0 ? (
-          <MeetingList meetings={meetings} />
+        {sortedMeetings.length > 0 ? (
+          <MeetingList meetings={sortedMeetings} />
         ) : (
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

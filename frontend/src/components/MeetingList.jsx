@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
+import { formatDateTime } from '../utils/dateTime';
 
 function MeetingList({ meetings }) {
   const getStatusVariant = (status) => {
@@ -33,22 +34,6 @@ function MeetingList({ meetings }) {
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const diffTime = today - date;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
   return (
     <div className="space-y-3">
@@ -78,7 +63,7 @@ function MeetingList({ meetings }) {
                   <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  {formatDate(meeting.date)}
+                  {formatDateTime(meeting.date, meeting.time)}
                 </span>
                 {meeting.attendeeCount && (
                   <span className="flex items-center">
