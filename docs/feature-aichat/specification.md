@@ -482,35 +482,14 @@ L2 Cache (Redis) - Embeddings
 
 **Note**: For MVP, we're using only Redis caching. PostgreSQL query caching (L3) is deferred to future iterations.
 
-## 🔒 7. Security & Validation
+## 🔒 7 Security & Validation
 
-### 7.1 Access Control
-- Users can only access their own meeting transcripts
-- Meeting series access based on meetings the user owns
-- Session-based authentication required for all endpoints
-
-### 7.2 Input Validation
+### 7.1 Input Validation
 - Question length: 1-500 characters
-- XSS prevention: Sanitize all user inputs
-- SQL injection protection: Use parameterized queries
 - Series name validation: Must match existing patterns
-
-### 7.3 Prompt Security
-- Prompt injection detection and prevention
-- System prompts isolated from user input
-- Response filtering for sensitive information
-
-### 7.4 Data Privacy
-- No PII stored in embeddings
+  
+### 7.2 Data Privacy
 - Chat sessions auto-expire after 24 hours
-- Session data encrypted at rest
-- Audit logging for all queries
-
-### 7.5 Rate Limiting
-- 10 requests per minute per user
-- 100 requests per hour per IP
-- Graceful degradation when limits exceeded
-
 
 ---
 
@@ -561,12 +540,3 @@ L2 Cache (Redis) - Embeddings
 
 ---
 
-## ✅ 10. Success Metrics
-
-- Average response time < 3 seconds
-- User satisfaction score > 4.5/5
-- 80% of questions answered without clarification
-- 50% reduction in time spent searching transcripts
-- Cache hit rate > 40% (when Redis enabled)
-
----
