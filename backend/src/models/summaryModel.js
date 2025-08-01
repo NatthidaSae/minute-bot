@@ -11,10 +11,13 @@ class Summary {
         s.key_decisions,
         s.action_items,
         s.discussion_highlights,
-        s.next_steps,
         s.created_at,
-        s.updated_at
+        s.updated_at,
+        t.meeting_id,
+        m.title as meeting_title
       FROM summaries s
+      JOIN transcripts t ON t.id = s.transcript_id
+      JOIN meetings m ON m.id = t.meeting_id
       WHERE s.transcript_id = $1
     `;
     
@@ -29,8 +32,7 @@ class Summary {
       attendees,
       key_decisions,
       action_items,
-      discussion_highlights,
-      next_steps
+      discussion_highlights
     } = summaryData;
 
     const query = `
@@ -40,9 +42,8 @@ class Summary {
         attendees,
         key_decisions,
         action_items,
-        discussion_highlights,
-        next_steps
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        discussion_highlights
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
@@ -52,8 +53,7 @@ class Summary {
       JSON.stringify(attendees || []),
       JSON.stringify(key_decisions || []),
       JSON.stringify(action_items || []),
-      JSON.stringify(discussion_highlights || []),
-      JSON.stringify(next_steps || [])
+      JSON.stringify(discussion_highlights || [])
     ];
 
     const result = await pool.query(query, values);

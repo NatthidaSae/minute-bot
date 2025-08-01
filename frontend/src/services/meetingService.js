@@ -23,5 +23,27 @@ export const meetingService = {
       console.error('Error fetching today\'s meetings:', error);
       throw error;
     }
+  },
+
+  // Get all transcripts for a specific meeting
+  getMeetingTranscripts: async (meetingId) => {
+    try {
+      const response = await api.get(`/api/meetings/${meetingId}/transcripts`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching meeting transcripts:', error);
+      throw error;
+    }
+  },
+
+  // Get all transcripts for a meeting series (recurring meetings)
+  getMeetingSeriesTranscripts: async (meetingId) => {
+    try {
+      const response = await api.get(`/api/meetings/${meetingId}/series-transcripts`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching meeting series transcripts:', error);
+      throw error;
+    }
   }
 };

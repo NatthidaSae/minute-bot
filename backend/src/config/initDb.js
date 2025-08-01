@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const pool = require('./database');
+const { SYSTEM_USER_ID, SYSTEM_USER } = require('../constants/system');
 
 async function initializeDatabase() {
   try {
@@ -30,6 +31,12 @@ async function seedDatabase() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    
+    // Create system user
+    await client.query(
+      'INSERT INTO users (id, name, email) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
+      [SYSTEM_USER.id, SYSTEM_USER.name, SYSTEM_USER.email]
+    );
     
     // Create a test user
     const userResult = await client.query(
@@ -63,13 +70,19 @@ async function seedDatabase() {
       );
       
       // Create transcript with varying statuses
-      const statuses = ['done', 'done', 'done', 'pending', 'error'];
+      const statuses = ['done', 'done', 'done', 'process', 'error'];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
       
+      // Generate filename and hash for test data
+      const filename = `${meeting.title.replace(/\s+/g, '_')}_${meeting.date.toISOString().split('T')[0]}.txt`;
+      const fileHash = require('crypto').createHash('sha256').update(filename + meeting.date.toISOString()).digest('hex');
+      
       const transcriptResult = await client.query(
-        'INSERT INTO transcripts (meeting_id, meeting_date, content, status, error_msg) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        'INSERT INTO transcripts (meeting_id, filename, file_hash, meeting_date, content, status, error_msg) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
         [
           meetingResult.rows[0].id,
+          filename,
+          fileHash,
           meeting.date,
           `Transcript content for ${meeting.title}`,
           status,
@@ -87,7 +100,10 @@ async function seedDatabase() {
             meeting.date,
             JSON.stringify(['John Doe', 'Jane Smith', 'Bob Johnson']),
             JSON.stringify(['Decision 1', 'Decision 2']),
-            JSON.stringify(['Action 1', 'Action 2']),
+            JSON.stringify([
+              { task: 'Action 1', assignedTo: ['John Doe'], dueDate: null },
+              { task: 'Action 2', assignedTo: ['Jane Smith'], dueDate: null }
+            ]),
             JSON.stringify(['Highlight 1', 'Highlight 2']),
             JSON.stringify(['Next step 1', 'Next step 2'])
           ]

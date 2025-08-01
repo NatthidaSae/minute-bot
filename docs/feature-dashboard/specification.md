@@ -23,7 +23,7 @@
 
 - `title`
 - `date`
-- `status`: `pending`, `done`, `error`
+- `status`: `process`, `done`, `error`
 - ปุ่ม **"View Summary"** (แสดงเฉพาะเมื่อ `status == 'done'`)
 
 ---
@@ -84,8 +84,8 @@ CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL
-  createdAt TIMESTAMP DEFAULT now(),
-  updatedAt TIMESTAMP DEFAULT now()
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
 );
 ```
 
@@ -96,8 +96,8 @@ CREATE TABLE meetings (
   title TEXT NOT NULL,
   meeting_date DATE NOT NULL,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  createdAt TIMESTAMP DEFAULT now(),
-  updatedAt TIMESTAMP DEFAULT now()
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
 );
 ```
 
@@ -108,7 +108,7 @@ CREATE TABLE transcripts (
   meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
   meetingDate DATE NOT NULL,
   content TEXT NOT NULL,
-  status TEXT CHECK (status IN ('pending', 'done', 'error')) NOT NULL DEFAULT 'pending',
+  status TEXT CHECK (status IN ('process', 'done', 'error')) NOT NULL DEFAULT 'process',
   error_msg TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
@@ -129,7 +129,7 @@ CREATE TABLE summaries (
   discussionHighlights JSONB,
   nextSteps JSONB,
   created_at TIMESTAMP DEFAULT NOW(),
-  update_at TIMESTAMP DEFALUT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
   CONSTRAINT fk_transcript
     FOREIGN KEY ("transcriptId") REFERENCES "Transcript"("transcriptId") ON DELETE CASCADE
 );

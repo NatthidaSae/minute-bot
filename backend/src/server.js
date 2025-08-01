@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { initializeDatabase } = require('./config/initDb');
+const googleDriveFileWatcher = require('./services/googleDriveFileWatcher');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,6 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/summaries', require('./routes/summaries'));
+app.use('/api/transcripts', require('./routes/transcripts'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -35,6 +37,18 @@ app.use((err, req, res, next) => {
 async function startServer() {
   try {
     await initializeDatabase();
+    
+    // Start Google Drive file watcher service
+    if (process.env.ENABLE_FILE_WATCHER !== 'false') {
+      try {
+        await googleDriveFileWatcher.start();
+        console.log('Google Drive API file watcher service started');
+      } catch (watcherError) {
+        console.error('Failed to start Google Drive file watcher service:', watcherError);
+        // Continue running server even if watcher fails
+      }
+    }
+    
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
@@ -43,5 +57,18 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  googleDriveFileWatcher.stop();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  googleDriveFileWatcher.stop();
+  process.exit(0);
+});
 
 startServer();
